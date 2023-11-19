@@ -3,7 +3,9 @@
    [optoball.models.lut :as lut]
    [optoball.models.time :as time]
    [optoball.models.league :as league]
-   [optoball.models.match :as match]))
+   [optoball.models.match :as match]
+   [optoball.models.team :as team]
+   ))
 
 ;; Consistency Rules
 ;; * Team never plays iteslf
@@ -53,20 +55,27 @@
 (defn teams-have-rest-between-games [matches _luts]
   (->> matches
        matches-by-team
-       vals
-       (mapcat (fn [matches]
+       (mapcat (fn [[team matches]]
                  (->> matches
                       (sort-by match/time)
                       (partition 2 1) ;; Adjacent pairs
-                      )))
-       ;; Double headers are exceptional and handled elsewhere
-       (remove (fn [[m1 m2]] (match/double-header? m1 m2)))
+                      ;; Double headers are exceptional and handled elsewhere
+                      (remove (fn [[m1 m2]] (match/double-header? team m1 m2))))))
        (map #(time/hours-between (-> % second match/time) (-> % first match/time)))
        (filter #(< % league/INTER-GAME-SPACING-HOURS))
        (map (fn [hours-apart]
               (let [hours-from-allowed (- league/INTER-GAME-SPACING-HOURS hours-apart)]
                 (* hours-from-allowed hours-from-allowed)))) ;; Squaring this makes small violations not a big deal, but big ones huge
        (reduce + 0)))
+
+(defn follows-team-time-and-date-restrictions [matches luts]
+  (->> matches
+       (mapcat (fn [match]
+                 [[(->> match match/team-1 (lut/team-by-id luts)) (match/time match)]
+                  [(->> match match/team-2 (lut/team-by-id luts)) (match/time match)]]))
+       (remove (fn [[team time]]
+                 (team/can-play-at-time? team time)))
+       count))
 
 ;; Soft Rules
 ;; * Minimize distance to games
@@ -83,5 +92,10 @@
               (reduce + 0)))
        [[team-plays-self team-plays-out-of-division court-double-bookings teams-without-full-schedule]
        ;; MKHTODO Normalize these values into miles or something
-        [teams-have-rest-between-games]
+        [teams-have-rest-between-games follows-team-time-and-date-restrictions]
         []]))
+
+;; MKHTODO More rules:
+;; * Plays within division
+;; * Double headers are directly adjacent in time. Don't space them in time because idle teens are the devil's play things
+;; * Coach restrictions

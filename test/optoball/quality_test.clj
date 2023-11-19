@@ -51,6 +51,15 @@
                                              [6 7 0 [2 2]] ;; Random noise other teams that mean nothing
                                              [8 9 0 [20 2]]] {}))))
 
+(deftest follows-team-time-and-date-restrictions
+  (is (= 1
+         (sut/follows-team-time-and-date-restrictions
+          [[1 2 0 [1 1]]]
+          {:teams-by-id {1 {:id 1 :dows #{}} ;; No days of weeks allowed
+                         2 {:id 2 :dows #{0 1 2 3 4 5 6 7}}
+                         }}))))
+
+
 (deftest quality-test
   (is (= 1
          (sut/court-double-bookings [[1 2 1 [1 1]]

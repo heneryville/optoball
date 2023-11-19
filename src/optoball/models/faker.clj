@@ -32,18 +32,33 @@
 (def DAY-OF_WEEK [0 4 5 6])
 (def TIMES-OF_DAY (range 10 23))
 
-(def DIVISIONS 10)
+(def DIVISIONS 3)
 (def TEAMS-PER-DIVISIONS 30)
 
-(defn make-team [id division]
+(defn make-team [id division-id]
   {:id id
-   :division division})
+   :division-id division-id
+   :dows (set (random-sample 0.95 (range 7)))
+   :exclusion-dates (set (take (rand-int 4) (random-sample 0.02 (range))))
+   :times-always (random-sample 0.05
+                                ['(> 3)
+                                 '(> 4)
+                                 '(< 16)
+                                 '(< 20)])
+   ;; MKHTODO Time restrictions on a specific date
+   })
 
-(defn make-teams []
-  (for [division (range 1 (inc DIVISIONS))
+(defn make-division [id]
+  {:id (str id)
+   :dow (if (odd? id)
+          #{0 1 2}
+          #{2 3})})
+
+
+(defn make-teams [divisions]
+  (for [division divisions
         team (range 1 (inc TEAMS-PER-DIVISIONS))]
-    {:id (str division "." team)
-     :division division}))
+    (make-team (str (:id division) "." team) (:id division))))
 
 (defn make-schedule []
   (for [week (range 1 (inc WEEKS))
@@ -51,10 +66,25 @@
         time TIMES-OF_DAY]
     [(+ week dow) time]))
 
+;; MKHTODO Gyms & courts should have some kind of base configuration, not just a bunch of slots
 (defn make-slots []
   (for [gym (range 1 (inc GYMS))
         court-num (range 1 (inc (rand-nth COURTS-PER-GYM)))
         time (make-schedule)]
     {:gym gym
-     :court (str gym "." court-num)
+     :court-id (str gym "." court-num)
      :time time}))
+
+
+(defn make-league []
+  (let [divisions (for [div (range 1 (inc DIVISIONS))] (make-division div))
+        teams (make-teams divisions)
+        slots (make-slots)]
+    {:league "fake-league"
+     :divisions divisions
+     :teams teams
+     :slots slots
+     }))
+
+
+(make-league)
